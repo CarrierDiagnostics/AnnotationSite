@@ -1,0 +1,349 @@
+<html>
+<style>
+    #img {
+        max-height: 800px;
+        width: 100%;
+        object-fit: contain;
+    }
+    
+    #imagDiv{
+        width: 70%;
+        height: 100%;
+        position: absolute;
+        Left:0;
+        Top:0;
+        display: block;
+
+    }
+    div.main{
+        display:inline-block;
+        background-color:#3a3a3a;
+
+    }
+    #buttons{
+        float:right;
+        width:15%;
+        height:100%;
+        overflow-x: hidden;
+        Top:0;
+    }
+    #anatomyButtons{
+        display: block;
+        position:relative;
+        width:15%;
+        height: 100%;
+    }
+    button{
+        padding:1rem;
+    }
+    #filename{
+        color: white;
+    }
+   
+</style>
+
+<body>
+    <div id="main">
+        
+        <div id="imagDiv" class="main">
+            <div id="filename"></div>
+            <img id="img" src="">
+            <div id="NL">
+                <button onclick="cImg(-1)">Last</button>
+                <button onclick="saveMask()">Save</button>
+                <select name="anatomy" id="anatomy"></select>
+                <button onclick="setEraser()">Eraser</button>
+                <input id="lineWidth" type="range" min="1" max="100" value="20" />
+                <button onclick="clearMask()">Clear</button>
+                <button onclick="cImg(1)">Next</button>
+                <div id="currentAnatomy"></div>
+                <img id="pattern" src="">
+            </div>
+        </div>
+        
+        <div id="buttons" class="main" >
+        </div>
+        <div id="anatomyButtons"></div>
+        
+    </div>
+    
+</body>
+<script type="text/javascript" src="images.js"></script>
+<script>
+    /*imagesList = <php echo scandir("./technical_drawings"); ?>;
+    console.log(imagesList);
+    imagesJSON = {}
+    imagesJSON["technical_drawings"] = imagesList; would be good but using express, no php*/
+    console.log( imagesJSON);
+    let currentAnatomySelection;
+    let ctx = null;//canvas.getContext('2d');
+    let isPainting = false;
+    let lineWidth = 5;
+    let startX;
+    let startY;
+    var currentImg = 0;
+    let canvasOffsetX = null;//canvas.offsetLeft;
+    let canvasOffsetY = null; //canvas.offsetTop;
+    let eraser = false;
+    var JsonKey = Object.keys(imagesJSON)[0];
+    const fnamediv = document.getElementById("filename");
+    fnamediv.innerHTML = imagesJSON[JsonKey][0];
+    const lW = document.getElementById("lineWidth");
+    const anatomy = document.getElementById("anatomy");
+    const anatomyButtons = document.getElementById("anatomyButtons")
+    const currentAnatomy = document.getElementById("currentAnatomy");
+    aList = {JsonKey:{"Prostate":1, "Bladder":2, "Rectum":3, "Urethra":4, "Uterus":5, "Vagina":6, "Uterus":7, "Vagina":8, "Uterus":9, "Vagina":10, "Uterus":11, "Vagina":12, "Uterus":13, "Vagina":14, "Uterus":15, "Vagina":16}} 
+           
+    var imageList;
+    
+    colour_dict = {0:[0,0,0,0],1:[255,0,0,1],2:[0,253,0,1],3:[0,0,250,1], 4:[253,255,0,1], 5:[250,0,250], 6:[0,255,250],
+            7:[100,0,200,1], 8:[103,200,0,1], 9:[105,105,105,1], 10:[200,110,0,0], 11:[200,0,120,0], 12:[50,200,130,0],
+            13:[0,140,200,0], 14:[200,50,150,0], 15:[160,200,50,0]}
+    for (var k in aList){
+        op = document.createElement("option");
+        op.value = k;
+        op.innerHTML = k;
+        anatomy.append(op)
+    }
+    window.addEventListener("load", (e) =>{
+        setAnatomyButtons();
+    })
+    
+    var canvas = document.getElementById("canvas");
+    const imageDiv = document.getElementById("imagDiv");
+    let img = document.getElementById("img");
+    let pattern = document.getElementById("pattern")
+    img.addEventListener("load", function(e){setCanvas(e)});
+    const buttons = document.getElementById("buttons");
+    const fList = [];
+    const mList = [];
+    const plist = [];
+
+    const draw = (e) => {
+        if(!isPainting) {
+            return;
+        }
+        if (eraser){
+            ctx.clearRect(e.clientX, e.clientY, lW.value, lW.value);
+            return;
+        }
+        ctx.lineWidth = lW.value;
+        ctx.lineCap = 'round';
+        ctx.lineTo(e.clientX , e.clientY);
+        ctx.stroke();
+    }
+    tempImg = {"innerHTML":"/"+JsonKey+imagesJSON[JsonKey][0],
+                "id":"0"};
+    changeImg(tempImg)
+       
+    
+    window.addEventListener("keydown", (event) => { 
+        if(event.key == "d"){
+            cImg(1)
+        }else if (event.key == "a"){
+            cImg(-1)
+        }else if(event.key == "s"){
+            saveMask();
+        }else if(event.key == "e"){
+            setEraser();
+        }else if(event.key == "c"){
+            clearMask();
+        }
+    });
+
+    window.addEventListener("wheel", event => {
+        const delta = Math.sign(event.deltaY);
+        lW.value = parseInt(lW.value) + (delta*5);
+        console.log(lW.value + " delta  = " + (delta*5));
+    });
+    
+    //let i = document.getElementById('files').addEventListener('change', (e)=>{
+
+    console.log("getting files");
+    let e = imagesJSON[JsonKey];
+    let tempCounter = 0;
+  
+    for(let i = 0; i < e.length; i++){// i < e.target.files.length change 100 to e.target
+        if (e[i].includes("mask")){
+            console.log(e[i]);
+            mList.push("/"+JsonKey+e[i]);
+        }else{
+            fList.push("/"+JsonKey+e[i]);
+            //plist.push("/pattern_test/" + e[i].replace("simfront","patternop") )
+            buttons.innerHTML += "<a onclick='changeImg(this)' id='"+tempCounter+"'>"+"/"+JsonKey + e[i] + "<\a>\n";
+            tempCounter++;
+        }
+    }
+    console.log("mlist =");
+    console.log(mList);
+
+   
+    function setEraser(){
+        eraser = true;
+        currentAnatomy.innerHTML = "Eraser";
+    }
+
+    function blobCallback() {
+    return (b) => {
+        console.log("save the blob ");
+        const a = document.createElement("a");
+        a.textContent = "Download";
+        document.body.appendChild(a);
+        //a.style.display = "block";
+        a.download = fname.replace(".png","_mask.png");
+        a.href = window.URL.createObjectURL(b);
+        a.click();
+        console.log(fname.replace(".png","_mask.png"));
+        a.remove();
+    };
+    }
+
+    function saveBlob(){
+        console.log("callign save ");
+        //const blob = await canvas.toBlob('image/png');
+        canvas.toBlob(blobCallback,'image/png');
+    }
+
+    function saveMask(){
+        const canvasData = canvas.toDataURL();
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/save-canvas");
+        xhr.setRequestHeader("Content-Type", "application/json");
+        let tJson = { canvasData, "filename":fList[currentImg].replace(".png","_mask.png").replace(".jpg","_mask.jpg").replace(".jpeg","_mask.jpeg") };
+        let jsonData = JSON.stringify(tJson);
+        xhr.send(jsonData);
+        xhr.onload = function() {
+            console.log(xhr.status);
+        if (xhr.status === 200) {
+            mList.push(fList[currentImg].replace(".png","_mask.png").replace(".jpg","_mask.jpg").replace(".jpeg","_mask.jpeg") );
+            cImg(1);
+            } else {
+                console.log("error :(");
+            }
+        };
+
+        /*
+        var link = document.createElement('a');
+        var fname = fList[currentImg].split("/");
+        console.log(fList[currentImg].split("/"));
+        fname = fname.pop();
+        console.log(fname);
+        link.download =  fname.replace(".png","_mask.png");
+        link.href = canvas.toDataURL()
+        link.click();
+        link.remove();
+        mList.push(fname.replace(".png","_mask.png"));
+        console.log(mList);
+        cImg(1);*/
+        
+
+    }
+    function setAnatomyButtons(){
+        for (var k in aList[anatomy.value]){
+            op = document.createElement("button");
+            op.value = k;
+            op.innerHTML = k;
+            op.style.display = "block";
+            let colourNum = aList[anatomy.value];
+            console.log(colourNum);
+            colourNum = colourNum[k];
+            console.log(colour_dict[colourNum]);
+
+            op.setAttribute("onclick","setColour(["+colour_dict[colourNum]+"],'"+ k+"')"); 
+           
+            anatomyButtons.append(op);
+        }
+    }
+    function setColour(colour, k){
+        currentAnatomySelection = [colour, k]; 
+        console.log(currentAnatomySelection);
+        eraser = false;
+        currentAnatomy.innerHTML = k;
+        if (colour != null && ctx != null){
+            console.log("rgb("+colour.toString()+")");
+            ctx.strokeStyle = "rgb("+colour.toString()+")";}
+        
+    }
+    function changeImg(tImg){
+        
+        img.src = tImg.innerHTML;
+        console.log("change Imge = " +tImg.innerHTML);
+        
+        currentImg = parseInt(tImg.id);
+        console.log(currentImg);
+    }
+    function cImg(a){
+        newI = currentImg + a;
+        if (newI >= 0 && newI<fList.length){
+            img.src = fList[newI];
+            //pattern.src = plist[newI]
+            fnamediv.innerHTML = fList[newI];
+            currentImg = newI;
+            
+        }
+        
+    }
+
+    function setCanvas(e){
+        
+        anatomyButtons.style.left = img.offsetWidth;
+        if (img.offsetHeight < 10){return}
+        if (canvas){
+            canvas.remove();
+        }
+        canvas = document.createElement("canvas");
+        canvas.style.position = "absolute";
+        canvas.style.left = "0";
+        canvas.style.top = "0";
+        canvas.style.zIndex = "10";
+        canvas.width = img.offsetWidth;
+        canvas.height = img.offsetHeight;
+
+        imageDiv.append(canvas);
+        console.log(currentImg);
+        console.log("current image = " +fList[currentImg]);
+        if (mList.includes(fList[currentImg].replace(".png","_mask.png").replace(".png","_mask.png").replace(".jpg","_mask.jpg").replace(".jpeg","_mask.jpeg"))){
+
+            console.log("theres a mask " +fList[currentImg].replace(".png","_mask.png").replace(".png","_mask.png").replace(".jpg","_mask.jpg").replace(".jpeg","_mask.jpeg"));
+            var mask = new Image();
+            mask.onload = function() {
+                ctx.globalAlpha = 0.7;
+                ctx.drawImage(mask,0,0);
+                console.log("aphad");
+            }
+            mask.src = fList[currentImg].replace(".png","_mask.png").replace(".jpg","_mask.jpg").replace(".jpeg","_mask.jpeg")+"?rev="+new Date().getTime();
+            console.log("should have been loaded");
+        }
+        ctx = canvas.getContext("2d");
+        canvasOffsetX = canvas.offsetLeft;
+        canvasOffsetY = canvas.offsetTop;
+
+        canvas.addEventListener('mousedown', (e) => {
+            isPainting = true;
+            startX = e.clientX;
+            startY = e.clientY;
+        });
+
+        canvas.addEventListener('mouseup', e => {
+            isPainting = false;
+
+            ctx.stroke();
+            ctx.beginPath();
+        });
+        canvas.addEventListener('mousemove', draw);
+
+        if(currentAnatomySelection){
+            setColour(currentAnatomySelection[0], currentAnatomySelection[1]);
+        }
+        
+        var sizeWidth = ctx.canvas.clientWidth;
+        var sizeHeight = ctx.canvas.clientHeight;
+        //ctx.scale(1/(sizeWidth/300), 1/(sizeHeight/150));
+    }
+
+</script>
+</html>
+
+
+
+
