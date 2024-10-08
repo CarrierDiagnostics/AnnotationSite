@@ -165,7 +165,6 @@
   
     for(let i = 0; i < e.length; i++){// i < e.target.files.length change 100 to e.target
         if (e[i].includes("mask")){
-            console.log(e[i]);
             mList.push("/"+JsonKey+e[i]);
         }else{
             fList.push("/"+JsonKey+e[i]);
@@ -185,7 +184,6 @@
 
     function blobCallback() {
     return (b) => {
-        console.log("save the blob ");
         const a = document.createElement("a");
         a.textContent = "Download";
         document.body.appendChild(a);
@@ -199,8 +197,6 @@
     }
 
     function saveBlob(){
-        console.log("callign save ");
-        //const blob = await canvas.toBlob('image/png');
         canvas.toBlob(blobCallback,'image/png');
     }
 
@@ -222,19 +218,7 @@
             }
         };
 
-        /*
-        var link = document.createElement('a');
-        var fname = fList[currentImg].split("/");
-        console.log(fList[currentImg].split("/"));
-        fname = fname.pop();
-        console.log(fname);
-        link.download =  fname.replace(".png","_mask.png");
-        link.href = canvas.toDataURL()
-        link.click();
-        link.remove();
-        mList.push(fname.replace(".png","_mask.png"));
-        console.log(mList);
-        cImg(1);*/
+    
         
 
     }
@@ -260,25 +244,22 @@
         eraser = false;
         currentAnatomy.innerHTML = k;
         if (colour != null && ctx != null){
-            console.log("rgb("+colour.toString()+")");
             ctx.strokeStyle = "rgb("+colour.toString()+")";}
         
     }
     function changeImg(tImg){
-        
-        img.src = tImg.innerHTML;
-        console.log("change Imge = " +tImg.innerHTML);
-        
-        currentImg = parseInt(tImg.id);
-        console.log(currentImg);
+        if (typeof(tImg) == "string"){
+            img.src = tImg;
+            currentImg = fList.indexOf(tImg);
+        }else{
+            img.src = tImg.innerHTML;            
+            currentImg = parseInt(tImg.id);
+        }
     }
     function cImg(a){
         newI = currentImg + a;
         if (newI >= 0 && newI<fList.length){
-            img.src = fList[newI];
-            //pattern.src = plist[newI]
-            fnamediv.innerHTML = fList[newI];
-            currentImg = newI;
+            changeImg(fList[newI]);
             
         }
         
@@ -296,15 +277,24 @@
         canvas.style.left = "0";
         canvas.style.top = "0";
         canvas.style.zIndex = "10";
-        canvas.width = img.offsetWidth;
-        canvas.height = img.offsetHeight;
+        const aspectRatio = img.naturalWidth / img.naturalHeight;
+        let canvasWidth = img.offsetWidth;
+        let canvasHeight = canvasWidth / aspectRatio;
 
+        if (canvasHeight > imageDiv.offsetHeight) {
+            canvasHeight = imageDiv.offsetHeight;
+            canvasWidth = canvasHeight * aspectRatio;
+        }
+        
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        
         imageDiv.append(canvas);
         console.log(currentImg);
         console.log("current image = " +fList[currentImg]);
-        if (mList.includes(fList[currentImg].replace(".png","_mask.png").replace(".png","_mask.png").replace(".jpg","_mask.jpg").replace(".jpeg","_mask.jpeg"))){
+        if (mList.includes(fList[currentImg].replace(".png","_mask.png").replace(".jpg","_mask.jpg").replace(".jpeg","_mask.jpeg"))){
 
-            console.log("theres a mask " +fList[currentImg].replace(".png","_mask.png").replace(".png","_mask.png").replace(".jpg","_mask.jpg").replace(".jpeg","_mask.jpeg"));
+            console.log("theres a mask " +fList[currentImg].replace(".png","_mask.png").replace(".jpg","_mask.jpg").replace(".jpeg","_mask.jpeg"));
             var mask = new Image();
             mask.onload = function() {
                 ctx.globalAlpha = 0.7;
@@ -313,7 +303,8 @@
             }
             mask.src = fList[currentImg].replace(".png","_mask.png").replace(".jpg","_mask.jpg").replace(".jpeg","_mask.jpeg")+"?rev="+new Date().getTime();
             console.log("should have been loaded");
-        }
+        }else             console.log("theres isnt' a mask " +fList[currentImg].replace(".png","_mask.png").replace(".jpg","_mask.jpg").replace(".jpeg","_mask.jpeg"));
+
         ctx = canvas.getContext("2d");
         canvasOffsetX = canvas.offsetLeft;
         canvasOffsetY = canvas.offsetTop;
@@ -340,10 +331,12 @@
         var sizeHeight = ctx.canvas.clientHeight;
         //ctx.scale(1/(sizeWidth/300), 1/(sizeHeight/150));
     }
+function clearMask(){
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
 
 </script>
 </html>
-
 
 
 
